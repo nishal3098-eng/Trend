@@ -4,7 +4,9 @@ provider "aws" {
 
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
-  tags = { Name = "trend-vpc" }
+  tags = {
+    Name = "trend-vpc"
+  }
 }
 
 resource "aws_subnet" "public" {
@@ -32,15 +34,39 @@ resource "aws_route_table_association" "a" {
 
 resource "aws_security_group" "jenkins" {
   vpc_id = aws_vpc.main.id
-  ingress { from_port = 22   to_port = 22   protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  ingress { from_port = 8080 to_port = 8080 protocol = "tcp" cidr_blocks = ["0.0.0.0/0"] }
-  egress  { from_port = 0    to_port = 0    protocol = "-1"  cidr_blocks = ["0.0.0.0/0"] }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
 resource "aws_iam_role" "jenkins" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
-    Statement = [{ Action = "sts:AssumeRole", Effect = "Allow", Principal = { Service = "ec2.amazonaws.com" } }]
+    Statement = [{
+      Action    = "sts:AssumeRole",
+      Effect    = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
   })
 }
 
@@ -56,11 +82,11 @@ resource "aws_iam_instance_profile" "jenkins" {
 
 resource "aws_instance" "jenkins" {
   ami                    = "ami-0f5ee92e2d63afc18"
-  instance_type          = "t3.medium"
+  instance_type          = "t3.micro"
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.jenkins.id]
   iam_instance_profile   = aws_iam_instance_profile.jenkins.name
-  user_data = <<-EOF
+  user_data = <<-USERDATA
     #!/bin/bash
     yum update -y
     yum install -y java-17-amazon-corretto git docker unzip
@@ -75,8 +101,10 @@ resource "aws_instance" "jenkins" {
     install -m 0755 kubectl /usr/local/bin/kubectl
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscli.zip
     unzip awscli.zip && ./aws/install
-  EOF
-  tags = { Name = "jenkins-server" }
+  USERDATA
+  tags = {
+    Name = "jenkins-server"
+  }
 }
 
 output "jenkins_public_ip" {
